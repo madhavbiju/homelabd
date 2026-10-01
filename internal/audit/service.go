@@ -64,9 +64,52 @@ func (s *Service) Log(ctx context.Context, event Event) error {
 		event.ClientIP,
 	)
 	
+	
 	if err != nil {
 		return fmt.Errorf("failed to write audit log: %w", err)
 	}
 	
 	return nil
+}
+
+// List retrieves paginated audit logs.
+func (s *Service) List(ctx context.Context, limit, offset int) ([]Record, error) {
+	query := `
+		SELECT id, timestamp, token_id, action, target, parameters, result, error_message, client_ip
+		FROM audit_logs
+		ORDER BY timestamp DESC
+		LIMIT ? OFFSET ?
+	`
+	
+	rows, err := s.db.DB.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query audit logs: %w", err)
+	}
+	defer rows.Close()
+
+	var records []Record
+	for rows.Next() {
+		var rec Record
+		var paramsJSON string
+		err := rows.Scan(
+			&rec.ID,
+			&rec.Timestamp,
+			&rec.TokenID,
+			&rec.Action,
+			&rec.Target,
+			&paramsJSON,
+			&rec.Result,
+			&rec.ErrorMessage,
+			&rec.ClientIP,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if paramsJSON != "" {
+			json.Unmarshal([]byte(paramsJSON), &rec.Parameters)
+		}
+		records = append(records, rec)
+	}
+
+	return records, nil
 }

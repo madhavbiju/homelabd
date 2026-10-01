@@ -13,12 +13,13 @@ import (
 	"github.com/madhavbiju/homelabd/internal/compose"
 	"github.com/madhavbiju/homelabd/internal/database"
 	"github.com/madhavbiju/homelabd/internal/docker"
+	"github.com/madhavbiju/homelabd/internal/events"
 	"github.com/madhavbiju/homelabd/internal/power"
 	"github.com/madhavbiju/homelabd/internal/system"
 )
 
 // NewRouter sets up the Chi router and all routes.
-func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Service, sysSvc *system.Service, dockerSvc *docker.Service, composeSvc *compose.Service, powerSvc *power.Service) http.Handler {
+func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Service, sysSvc *system.Service, dockerSvc *docker.Service, composeSvc *compose.Service, powerSvc *power.Service, eventBroker *events.Broker) http.Handler {
 	r := chi.NewRouter()
 
 	// Base middlewares
@@ -31,6 +32,7 @@ func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Ser
 	authHandler := handlers.NewAuthHandler(authSvc, auditSvc, db)
 	sysHandler := handlers.NewSystemHandler(sysSvc)
 	powerHandler := handlers.NewPowerHandler(powerSvc, auditSvc)
+	eventsHandler := handlers.NewEventsHandler(eventBroker)
 	
 	var dockerHandler *handlers.DockerHandler
 	var composeHandler *handlers.ComposeHandler
@@ -53,6 +55,18 @@ func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Ser
 		// Protected routes
 		r.Group(func(r chi.Router) {
 			
+			// SSE Events endpoint (requires system:read)
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequireAuth(authSvc, "system:read"))
+				r.Get("/events", eventsHandler.Stream)
+			})
+			
+			// Audit log endpoint (requires admin)
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequireAuth(authSvc, "admin"))
+				r.Get("/audit", handlers.NewAuditHandler(auditSvc).List)
+			})
+
 			r.Route("/system", func(r chi.Router) {
 				// Read routes
 				r.Group(func(r chi.Router) {
