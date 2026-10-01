@@ -10,13 +10,14 @@ import (
 	"github.com/madhavbiju/homelabd/internal/api/middleware"
 	"github.com/madhavbiju/homelabd/internal/audit"
 	"github.com/madhavbiju/homelabd/internal/auth"
+	"github.com/madhavbiju/homelabd/internal/compose"
 	"github.com/madhavbiju/homelabd/internal/database"
 	"github.com/madhavbiju/homelabd/internal/docker"
 	"github.com/madhavbiju/homelabd/internal/system"
 )
 
 // NewRouter sets up the Chi router and all routes.
-func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Service, sysSvc *system.Service, dockerSvc *docker.Service) http.Handler {
+func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Service, sysSvc *system.Service, dockerSvc *docker.Service, composeSvc *compose.Service) http.Handler {
 	r := chi.NewRouter()
 
 	// Base middlewares
@@ -29,8 +30,13 @@ func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Ser
 	authHandler := handlers.NewAuthHandler(authSvc, auditSvc, db)
 	sysHandler := handlers.NewSystemHandler(sysSvc)
 	var dockerHandler *handlers.DockerHandler
+	var composeHandler *handlers.ComposeHandler
+	
 	if dockerSvc != nil {
 		dockerHandler = handlers.NewDockerHandler(dockerSvc, auditSvc)
+	}
+	if composeSvc != nil {
+		composeHandler = handlers.NewComposeHandler(composeSvc, auditSvc)
 	}
 
 	// Health and Ready endpoints
@@ -74,6 +80,21 @@ func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Ser
 						r.Post("/containers/{id}/{operation}", dockerHandler.OperateContainer)
 						r.Post("/images/pull", dockerHandler.PullImage)
 					})
+
+					if composeHandler != nil {
+						r.Route("/stacks", func(r chi.Router) {
+							r.Group(func(r chi.Router) {
+								r.Use(middleware.RequireAuth(authSvc, "compose:read"))
+								r.Get("/", composeHandler.ListStacks)
+								r.Get("/{name}", composeHandler.GetStack)
+							})
+							
+							r.Group(func(r chi.Router) {
+								r.Use(middleware.RequireAuth(authSvc, "compose:operate"))
+								r.Post("/{name}/{operation}", composeHandler.OperateStack)
+							})
+						})
+					}
 				})
 			}
 		})

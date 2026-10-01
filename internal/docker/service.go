@@ -16,6 +16,10 @@ type Service struct {
 	cli *client.Client
 }
 
+func (s *Service) Client() *client.Client {
+	return s.cli
+}
+
 func NewService(socketPath string) (*Service, error) {
 	opts := []client.Opt{
 		client.WithHost("unix://" + socketPath),
