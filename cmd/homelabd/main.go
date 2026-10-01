@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/madhavbiju/homelabd/internal/api"
+	"github.com/madhavbiju/homelabd/internal/audit"
+	"github.com/madhavbiju/homelabd/internal/auth"
 	"github.com/madhavbiju/homelabd/internal/config"
 	"github.com/madhavbiju/homelabd/internal/database"
 	"github.com/madhavbiju/homelabd/internal/logger"
@@ -48,8 +50,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize Services
+	auditSvc := audit.NewService(db)
+	authSvc := auth.NewService(db)
+
 	// Initialize Router
-	router := api.NewRouter(db)
+	router := api.NewRouter(db, authSvc, auditSvc)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	srv := &http.Server{

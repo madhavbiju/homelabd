@@ -4,12 +4,14 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/madhavbiju/homelabd/internal/ctxutil"
+
 	"github.com/google/uuid"
 )
 
-type contextKey string
 
-const RequestIDKey contextKey = "request_id"
+
+
 
 // RequestID adds a unique UUID to each request context and sets the X-Request-ID header.
 func RequestID(next http.Handler) http.Handler {
@@ -19,17 +21,10 @@ func RequestID(next http.Handler) http.Handler {
 			reqID = uuid.NewString()
 		}
 
-		ctx := context.WithValue(r.Context(), RequestIDKey, reqID)
+		ctx := context.WithValue(r.Context(), ctxutil.RequestIDKey, reqID)
 		w.Header().Set("X-Request-ID", reqID)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-// GetRequestID retrieves the request ID from the context.
-func GetRequestID(ctx context.Context) string {
-	if reqID, ok := ctx.Value(RequestIDKey).(string); ok {
-		return reqID
-	}
-	return ""
-}

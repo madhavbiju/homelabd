@@ -1,10 +1,10 @@
-package api
+package response
 
 import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/madhavbiju/homelabd/internal/api/middleware"
+	"github.com/madhavbiju/homelabd/internal/ctxutil"
 )
 
 type APIError struct {
@@ -22,7 +22,7 @@ func WriteError(w http.ResponseWriter, r *http.Request, statusCode int, code, me
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 
-	reqID := middleware.GetRequestID(r.Context())
+	reqID := ctxutil.GetRequestID(r.Context())
 
 	resp := ErrorResponse{
 		Error: APIError{

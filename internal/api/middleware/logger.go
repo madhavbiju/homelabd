@@ -3,6 +3,8 @@ package middleware
 import (
 	"log/slog"
 	"net/http"
+
+	"github.com/madhavbiju/homelabd/internal/ctxutil"
 	"time"
 )
 
@@ -20,7 +22,7 @@ func (rw *responseRecorder) WriteHeader(code int) {
 func RequestLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		reqID := GetRequestID(r.Context())
+		reqID := ctxutil.GetRequestID(r.Context())
 
 		rw := &responseRecorder{
 			ResponseWriter: w,
