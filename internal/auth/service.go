@@ -19,6 +19,7 @@ var (
 
 type TokenRecord struct {
 	ID          string
+	UserID      *string
 	Description string
 	TokenHash   string
 	Permissions []string
@@ -36,7 +37,7 @@ func NewService(db *database.Database) *Service {
 }
 
 // CreateToken generates a new token and stores its hash in the database.
-func (s *Service) CreateToken(ctx context.Context, description string, permissions []string, expiresAt *time.Time) (string, *TokenRecord, error) {
+func (s *Service) CreateToken(ctx context.Context, userID *string, description string, permissions []string, expiresAt *time.Time) (string, *TokenRecord, error) {
 	plainToken, tokenHash, err := GenerateToken()
 	if err != nil {
 		return "", nil, err
@@ -49,8 +50,8 @@ func (s *Service) CreateToken(ctx context.Context, description string, permissio
 	}
 
 	query := `
-		INSERT INTO tokens (id, description, token_hash, permissions, created_at, expires_at, revoked)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tokens (id, user_id, description, token_hash, permissions, created_at, expires_at, revoked)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	
 	now := time.Now().UTC()
@@ -82,7 +83,7 @@ func (s *Service) ValidateToken(ctx context.Context, plainToken string) (*TokenR
 	hash := HashToken(plainToken)
 
 	query := `
-		SELECT id, description, token_hash, permissions, created_at, expires_at, revoked
+		SELECT id, user_id, description, token_hash, permissions, created_at, expires_at, revoked
 		FROM tokens
 		WHERE token_hash = ?
 	`
@@ -93,6 +94,7 @@ func (s *Service) ValidateToken(ctx context.Context, plainToken string) (*TokenR
 
 	err := s.db.DB.QueryRowContext(ctx, query, hash).Scan(
 		&record.ID,
+		&record.UserID,
 		&record.Description,
 		&record.TokenHash,
 		&permsJSON,

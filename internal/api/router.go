@@ -16,10 +16,11 @@ import (
 	"github.com/madhavbiju/homelabd/internal/events"
 	"github.com/madhavbiju/homelabd/internal/power"
 	"github.com/madhavbiju/homelabd/internal/system"
+	"github.com/madhavbiju/homelabd/internal/users"
 )
 
 // NewRouter sets up the Chi router and all routes.
-func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Service, sysSvc *system.Service, dockerSvc *docker.Service, composeSvc *compose.Service, powerSvc *power.Service, eventBroker *events.Broker) http.Handler {
+func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Service, sysSvc *system.Service, dockerSvc *docker.Service, composeSvc *compose.Service, powerSvc *power.Service, eventBroker *events.Broker, usersSvc *users.Service) http.Handler {
 	r := chi.NewRouter()
 
 	// Base middlewares
@@ -29,7 +30,7 @@ func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Ser
 	r.Use(chimiddleware.RealIP)
 
 	healthHandler := handlers.NewHealthHandler(db)
-	authHandler := handlers.NewAuthHandler(authSvc, auditSvc, db)
+	authHandler := handlers.NewAuthHandler(authSvc, auditSvc, usersSvc, db)
 	sysHandler := handlers.NewSystemHandler(sysSvc)
 	powerHandler := handlers.NewPowerHandler(powerSvc, auditSvc)
 	eventsHandler := handlers.NewEventsHandler(eventBroker)
@@ -50,10 +51,15 @@ func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Ser
 
 	// API v1 routes
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Post("/auth/tokens", authHandler.CreateToken)
+		r.Post("/auth/setup", authHandler.Setup)
+		r.Post("/auth/login", authHandler.Login)
 		
 		// Protected routes
 		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequireAuth(authSvc, "")) // Base authentication
+			
+			// Token creation now requires auth and admin (handled in handler)
+			r.Post("/auth/tokens", authHandler.CreateToken)
 			
 			// SSE Events endpoint (requires system:read)
 			r.Group(func(r chi.Router) {

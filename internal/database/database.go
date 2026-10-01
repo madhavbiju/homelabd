@@ -3,11 +3,18 @@ package database
 import (
 	"context"
 	"database/sql"
+	"embed"
 	"fmt"
 	"log/slog"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/sqlite"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "modernc.org/sqlite"
 )
+
+//go:embed migrations/*.sql
+var migrationFS embed.FS
 
 type Database struct {
 	DB *sql.DB
@@ -37,39 +44,27 @@ func (d *Database) Close() error {
 	return nil
 }
 
-// Migrate would run schema migrations.
-// In Phase 1 we will just create the tables if they don't exist.
+// Migrate runs embedded SQL migrations using golang-migrate.
 func (d *Database) Migrate(ctx context.Context) error {
-	schema := `
-	CREATE TABLE IF NOT EXISTS tokens (
-		id TEXT PRIMARY KEY,
-		description TEXT,
-		token_hash TEXT NOT NULL UNIQUE,
-		permissions TEXT NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		expires_at DATETIME,
-		revoked BOOLEAN DEFAULT FALSE
-	);
-
-	CREATE TABLE IF NOT EXISTS audit_logs (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-		token_id TEXT,
-		action TEXT NOT NULL,
-		target TEXT,
-		parameters TEXT,
-		result TEXT,
-		error_message TEXT,
-		client_ip TEXT,
-		FOREIGN KEY (token_id) REFERENCES tokens(id)
-	);
-	`
-	
-	_, err := d.DB.ExecContext(ctx, schema)
+	d1, err := iofs.New(migrationFS, "migrations")
 	if err != nil {
+		return fmt.Errorf("failed to load migration files: %w", err)
+	}
+
+	driver, err := sqlite.WithInstance(d.DB, &sqlite.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create migration driver: %w", err)
+	}
+
+	m, err := migrate.NewWithInstance("iofs", d1, "sqlite", driver)
+	if err != nil {
+		return fmt.Errorf("failed to initialize migrator: %w", err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
-	
+
 	slog.Info("Database migrations applied successfully")
 	return nil
 }

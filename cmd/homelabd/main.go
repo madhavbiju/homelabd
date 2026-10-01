@@ -23,6 +23,7 @@ import (
 	"github.com/madhavbiju/homelabd/internal/logger"
 	"github.com/madhavbiju/homelabd/internal/power"
 	"github.com/madhavbiju/homelabd/internal/system"
+	"github.com/madhavbiju/homelabd/internal/users"
 )
 
 func main() {
@@ -82,8 +83,11 @@ func main() {
 	events.StartDockerListener(ctx, dockerCli, eventBroker)
 	events.StartSystemPoller(ctx, sysSvc, eventBroker)
 
+	// Initialize Users Service
+	usersSvc := users.NewService(db)
+
 	// Initialize Router
-	router := api.NewRouter(db, authSvc, auditSvc, sysSvc, dockerSvc, composeSvc, powerSvc, eventBroker)
+	router := api.NewRouter(db, authSvc, auditSvc, sysSvc, dockerSvc, composeSvc, powerSvc, eventBroker, usersSvc)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	srv := &http.Server{
