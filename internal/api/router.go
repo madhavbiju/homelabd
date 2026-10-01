@@ -6,6 +6,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+
 	"github.com/madhavbiju/homelabd/internal/api/handlers"
 	"github.com/madhavbiju/homelabd/internal/api/middleware"
 	"github.com/madhavbiju/homelabd/internal/audit"
@@ -22,6 +24,16 @@ import (
 // NewRouter sets up the Chi router and all routes.
 func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Service, sysSvc *system.Service, dockerSvc *docker.Service, composeSvc *compose.Service, powerSvc *power.Service, eventBroker *events.Broker, usersSvc *users.Service) http.Handler {
 	r := chi.NewRouter()
+
+	// CORS Middleware
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"https://*", "http://*"}, // Permissive for homelab environments
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	}))
 
 	// Base middlewares
 	r.Use(chimiddleware.Recoverer)
