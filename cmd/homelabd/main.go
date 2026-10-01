@@ -26,7 +26,7 @@ import (
 )
 
 func main() {
-	configPath := flag.String("config", "", "path to configuration file")
+	configPath := flag.String("config", os.Getenv("HOMELABD_CONFIG"), "path to configuration file")
 	flag.Parse()
 
 	// Load Configuration
