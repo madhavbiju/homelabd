@@ -11,11 +11,12 @@ import (
 	"github.com/madhavbiju/homelabd/internal/audit"
 	"github.com/madhavbiju/homelabd/internal/auth"
 	"github.com/madhavbiju/homelabd/internal/database"
+	"github.com/madhavbiju/homelabd/internal/docker"
 	"github.com/madhavbiju/homelabd/internal/system"
 )
 
 // NewRouter sets up the Chi router and all routes.
-func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Service, sysSvc *system.Service) http.Handler {
+func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Service, sysSvc *system.Service, dockerSvc *docker.Service) http.Handler {
 	r := chi.NewRouter()
 
 	// Base middlewares
@@ -27,6 +28,10 @@ func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Ser
 	healthHandler := handlers.NewHealthHandler(db)
 	authHandler := handlers.NewAuthHandler(authSvc, auditSvc, db)
 	sysHandler := handlers.NewSystemHandler(sysSvc)
+	var dockerHandler *handlers.DockerHandler
+	if dockerSvc != nil {
+		dockerHandler = handlers.NewDockerHandler(dockerSvc, auditSvc)
+	}
 
 	// Health and Ready endpoints
 	r.Get("/health", healthHandler.Health)
@@ -38,16 +43,39 @@ func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Ser
 		
 		// Protected routes
 		r.Group(func(r chi.Router) {
-			// Require at least system:read (or admin)
-			r.Use(middleware.RequireAuth(authSvc, "system:read"))
 			
 			r.Route("/system", func(r chi.Router) {
+				// Require at least system:read (or admin)
+				r.Use(middleware.RequireAuth(authSvc, "system:read"))
 				r.Get("/", sysHandler.GetInfo)
 				r.Get("/resources", sysHandler.GetResources)
 				r.Get("/storage", sysHandler.GetStorage)
 				r.Get("/network", sysHandler.GetNetwork)
 				r.Get("/processes", sysHandler.GetProcesses)
 			})
+
+			if dockerHandler != nil {
+				r.Route("/docker", func(r chi.Router) {
+					// Read routes
+					r.Group(func(r chi.Router) {
+						r.Use(middleware.RequireAuth(authSvc, "docker:read"))
+						r.Get("/", dockerHandler.GetInfo)
+						r.Get("/containers", dockerHandler.ListContainers)
+						r.Get("/containers/{id}", dockerHandler.GetContainer)
+						r.Get("/containers/{id}/logs", dockerHandler.GetLogs)
+						r.Get("/containers/{id}/stats", dockerHandler.GetStats)
+						r.Get("/images", dockerHandler.ListImages)
+						r.Get("/images/{id}", dockerHandler.GetImage)
+					})
+					
+					// Operate routes
+					r.Group(func(r chi.Router) {
+						r.Use(middleware.RequireAuth(authSvc, "docker:operate"))
+						r.Post("/containers/{id}/{operation}", dockerHandler.OperateContainer)
+						r.Post("/images/pull", dockerHandler.PullImage)
+					})
+				})
+			}
 		})
 	})
 

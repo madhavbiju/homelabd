@@ -16,6 +16,7 @@ import (
 	"github.com/madhavbiju/homelabd/internal/auth"
 	"github.com/madhavbiju/homelabd/internal/config"
 	"github.com/madhavbiju/homelabd/internal/database"
+	"github.com/madhavbiju/homelabd/internal/docker"
 	"github.com/madhavbiju/homelabd/internal/logger"
 	"github.com/madhavbiju/homelabd/internal/system"
 )
@@ -55,9 +56,20 @@ func main() {
 	auditSvc := audit.NewService(db)
 	authSvc := auth.NewService(db)
 	sysSvc := system.NewService()
+	
+	var dockerSvc *docker.Service
+	if cfg.Docker.Enabled {
+		ds, err := docker.NewService(cfg.Docker.Socket)
+		if err != nil {
+			slog.Warn("Docker is enabled but failed to initialize. Continuing without Docker.", "error", err)
+		} else {
+			dockerSvc = ds
+			slog.Info("Docker integration initialized")
+		}
+	}
 
 	// Initialize Router
-	router := api.NewRouter(db, authSvc, auditSvc, sysSvc)
+	router := api.NewRouter(db, authSvc, auditSvc, sysSvc, dockerSvc)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	srv := &http.Server{
