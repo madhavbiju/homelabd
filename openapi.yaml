@@ -1,0 +1,93 @@
+openapi: 3.0.3
+info:
+  title: homelabd API
+  version: 1.0.0
+  description: Lightweight API-first control plane for Linux servers and homelabs.
+servers:
+  - url: /api/v1
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+paths:
+  /auth/tokens:
+    post:
+      summary: Create a new API token
+      description: Generates a new API token. If the system is uninitialized (no users), no authentication is required. Otherwise, an admin token is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                scopes:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Token created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+  /system:
+    get:
+      summary: Get system information
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+  /docker/containers:
+    get:
+      summary: List containers
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+  /docker/stacks:
+    get:
+      summary: List Compose stacks
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successful response
+  /system/reboot:
+    post:
+      summary: Reboot host
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirm:
+                  type: boolean
+      responses:
+        '200':
+          description: Reboot scheduled
+  /events:
+    get:
+      summary: Stream Server-Sent Events
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string

@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  homelabd:
+    image: ghcr.io/madhavbiju/homelabd:latest
+    build: .
+    container_name: homelabd
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # Required for Docker integration
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Persistent storage for the SQLite database
+      - homelabd_data:/data
+    environment:
+      - HOMELABD_CONFIG=/data/config.yaml
+
+volumes:
+  homelabd_data:
