@@ -3,7 +3,6 @@ package api
 import (
 	"net/http"
 
-	"github.com/madhavbiju/homelabd/internal/api/response"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -12,10 +11,11 @@ import (
 	"github.com/madhavbiju/homelabd/internal/audit"
 	"github.com/madhavbiju/homelabd/internal/auth"
 	"github.com/madhavbiju/homelabd/internal/database"
+	"github.com/madhavbiju/homelabd/internal/system"
 )
 
 // NewRouter sets up the Chi router and all routes.
-func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Service) http.Handler {
+func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Service, sysSvc *system.Service) http.Handler {
 	r := chi.NewRouter()
 
 	// Base middlewares
@@ -26,6 +26,7 @@ func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Ser
 
 	healthHandler := handlers.NewHealthHandler(db)
 	authHandler := handlers.NewAuthHandler(authSvc, auditSvc, db)
+	sysHandler := handlers.NewSystemHandler(sysSvc)
 
 	// Health and Ready endpoints
 	r.Get("/health", healthHandler.Health)
@@ -35,11 +36,17 @@ func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Ser
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Post("/auth/tokens", authHandler.CreateToken)
 		
-		// Protected routes example
+		// Protected routes
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.RequireAuth(authSvc, "admin"))
-			r.Get("/ping", func(w http.ResponseWriter, req *http.Request) {
-				response.WriteJSON(w, http.StatusOK, map[string]string{"message": "pong"})
+			// Require at least system:read (or admin)
+			r.Use(middleware.RequireAuth(authSvc, "system:read"))
+			
+			r.Route("/system", func(r chi.Router) {
+				r.Get("/", sysHandler.GetInfo)
+				r.Get("/resources", sysHandler.GetResources)
+				r.Get("/storage", sysHandler.GetStorage)
+				r.Get("/network", sysHandler.GetNetwork)
+				r.Get("/processes", sysHandler.GetProcesses)
 			})
 		})
 	})

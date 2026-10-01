@@ -17,6 +17,7 @@ import (
 	"github.com/madhavbiju/homelabd/internal/config"
 	"github.com/madhavbiju/homelabd/internal/database"
 	"github.com/madhavbiju/homelabd/internal/logger"
+	"github.com/madhavbiju/homelabd/internal/system"
 )
 
 func main() {
@@ -53,9 +54,10 @@ func main() {
 	// Initialize Services
 	auditSvc := audit.NewService(db)
 	authSvc := auth.NewService(db)
+	sysSvc := system.NewService()
 
 	// Initialize Router
-	router := api.NewRouter(db, authSvc, auditSvc)
+	router := api.NewRouter(db, authSvc, auditSvc, sysSvc)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	srv := &http.Server{
