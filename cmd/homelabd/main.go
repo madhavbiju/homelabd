@@ -19,6 +19,7 @@ import (
 	"github.com/madhavbiju/homelabd/internal/database"
 	"github.com/madhavbiju/homelabd/internal/docker"
 	"github.com/madhavbiju/homelabd/internal/logger"
+	"github.com/madhavbiju/homelabd/internal/power"
 	"github.com/madhavbiju/homelabd/internal/system"
 )
 
@@ -57,6 +58,7 @@ func main() {
 	auditSvc := audit.NewService(db)
 	authSvc := auth.NewService(db)
 	sysSvc := system.NewService()
+	powerSvc := power.NewService()
 	
 	var dockerSvc *docker.Service
 	var composeSvc *compose.Service
@@ -72,7 +74,7 @@ func main() {
 	}
 
 	// Initialize Router
-	router := api.NewRouter(db, authSvc, auditSvc, sysSvc, dockerSvc, composeSvc)
+	router := api.NewRouter(db, authSvc, auditSvc, sysSvc, dockerSvc, composeSvc, powerSvc)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	srv := &http.Server{

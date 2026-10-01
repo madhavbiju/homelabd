@@ -13,11 +13,12 @@ import (
 	"github.com/madhavbiju/homelabd/internal/compose"
 	"github.com/madhavbiju/homelabd/internal/database"
 	"github.com/madhavbiju/homelabd/internal/docker"
+	"github.com/madhavbiju/homelabd/internal/power"
 	"github.com/madhavbiju/homelabd/internal/system"
 )
 
 // NewRouter sets up the Chi router and all routes.
-func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Service, sysSvc *system.Service, dockerSvc *docker.Service, composeSvc *compose.Service) http.Handler {
+func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Service, sysSvc *system.Service, dockerSvc *docker.Service, composeSvc *compose.Service, powerSvc *power.Service) http.Handler {
 	r := chi.NewRouter()
 
 	// Base middlewares
@@ -29,6 +30,8 @@ func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Ser
 	healthHandler := handlers.NewHealthHandler(db)
 	authHandler := handlers.NewAuthHandler(authSvc, auditSvc, db)
 	sysHandler := handlers.NewSystemHandler(sysSvc)
+	powerHandler := handlers.NewPowerHandler(powerSvc, auditSvc)
+	
 	var dockerHandler *handlers.DockerHandler
 	var composeHandler *handlers.ComposeHandler
 	
@@ -51,13 +54,22 @@ func NewRouter(db *database.Database, authSvc *auth.Service, auditSvc *audit.Ser
 		r.Group(func(r chi.Router) {
 			
 			r.Route("/system", func(r chi.Router) {
-				// Require at least system:read (or admin)
-				r.Use(middleware.RequireAuth(authSvc, "system:read"))
-				r.Get("/", sysHandler.GetInfo)
-				r.Get("/resources", sysHandler.GetResources)
-				r.Get("/storage", sysHandler.GetStorage)
-				r.Get("/network", sysHandler.GetNetwork)
-				r.Get("/processes", sysHandler.GetProcesses)
+				// Read routes
+				r.Group(func(r chi.Router) {
+					r.Use(middleware.RequireAuth(authSvc, "system:read"))
+					r.Get("/", sysHandler.GetInfo)
+					r.Get("/resources", sysHandler.GetResources)
+					r.Get("/storage", sysHandler.GetStorage)
+					r.Get("/network", sysHandler.GetNetwork)
+					r.Get("/processes", sysHandler.GetProcesses)
+				})
+				
+				// Power routes
+				r.Group(func(r chi.Router) {
+					r.Use(middleware.RequireAuth(authSvc, "power:operate"))
+					r.Post("/reboot", powerHandler.Operate)
+					r.Post("/shutdown", powerHandler.Operate)
+				})
 			})
 
 			if dockerHandler != nil {
