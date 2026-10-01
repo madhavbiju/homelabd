@@ -33,14 +33,26 @@ docker run -d \
 
 Download the binary from the [Releases](#) page and configure `systemd`. See [docs/systemd.md](docs/systemd.md) for a hardened native configuration.
 
-## Bootstrapping Auth
+## User Accounts & Authentication
 
-On first run, the database is empty and requires an initial Admin token. You can generate one via the API without authentication since the system detects it is uninitialized:
+On first run, the database is empty. You must create the initial Admin user account before you can access the API.
+
+You can generate the first user without authentication since the system detects it is uninitialized:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/auth/tokens \
+curl -X POST http://localhost:8080/api/v1/auth/setup \
   -H "Content-Type: application/json" \
-  -d '{"name": "bootstrap", "scopes": ["admin"]}'
+  -d '{"username": "admin", "password": "supersecurepassword"}'
+```
+
+After setup, this endpoint locks down permanently. 
+
+To access the API, log in with your credentials to generate a session token:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "supersecurepassword"}'
 ```
 
 Save the generated `token` securely. For all subsequent requests, pass it as a Bearer token:

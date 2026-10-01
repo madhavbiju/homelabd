@@ -11,10 +11,10 @@ components:
       type: http
       scheme: bearer
 paths:
-  /auth/tokens:
+  /auth/setup:
     post:
-      summary: Create a new API token
-      description: Generates a new API token. If the system is uninitialized (no users), no authentication is required. Otherwise, an admin token is required.
+      summary: Bootstrap the initial admin account
+      description: Creates the first admin user. Only accessible when no users exist.
       requestBody:
         required: true
         content:
@@ -22,22 +22,54 @@ paths:
             schema:
               type: object
               properties:
-                name:
+                username:
                   type: string
-                scopes:
+                password:
+                  type: string
+      responses:
+        '201':
+          description: Setup complete, returns session token
+  /auth/login:
+    post:
+      summary: Login to generate a session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Returns session token
+  /auth/tokens:
+    post:
+      summary: Create a programmatic API token
+      description: Generates a new API token. Requires an active admin token.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                description:
+                  type: string
+                permissions:
                   type: array
                   items:
                     type: string
+                user_id:
+                  type: string
       responses:
-        '200':
+        '201':
           description: Token created successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  token:
-                    type: string
   /system:
     get:
       summary: Get system information
