@@ -60,13 +60,14 @@ func (s *Service) CreateToken(ctx context.Context, userID *string, description s
 		expiresAtVal = expiresAt.UTC()
 	}
 
-	_, err = s.db.DB.ExecContext(ctx, query, id, description, tokenHash, string(permsJSON), now, expiresAtVal, false)
+	_, err = s.db.DB.ExecContext(ctx, query, id, userID, description, tokenHash, string(permsJSON), now, expiresAtVal, false)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to insert token: %w", err)
 	}
 
 	record := &TokenRecord{
 		ID:          id,
+		UserID:      userID,
 		Description: description,
 		TokenHash:   tokenHash,
 		Permissions: permissions,
